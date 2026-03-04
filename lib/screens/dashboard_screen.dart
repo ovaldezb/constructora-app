@@ -53,15 +53,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
-              decoration: const BoxDecoration(color: Colors.blue),
+              decoration: const BoxDecoration(color: Color(0xFF2E7D32)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  const Icon(Icons.construction, size: 50, color: Colors.white),
+                  Row(
+                    children: const [
+                      Icon(Icons.emoji_objects, color: Color(0xFFFFD600), size: 36),
+                      SizedBox(width: 8),
+                      Icon(Icons.emoji_events, color: Color(0xFFFF4081), size: 36),
+                      SizedBox(width: 8),
+                      Icon(Icons.pets, color: Colors.white, size: 36),
+                    ],
+                  ),
                   const SizedBox(height: 10),
-                  const Text('Gestión Constructora', style: TextStyle(color: Colors.white, fontSize: 20)),
-                  Text(authService.token != null ? 'Sesión Activa' : 'Offline', style: const TextStyle(color: Colors.white70)),
+                  const Text('LuViRex Panel', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                  Text(authService.token != null ? 'Sesión Activa - $profile' : 'Offline', style: const TextStyle(color: Colors.white70)),
                 ],
               ),
             ),

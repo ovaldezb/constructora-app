@@ -35,17 +35,94 @@ class AppRoot extends StatelessWidget {
       );
     }
     
-    // ... rest of code
     return MaterialApp(
-      title: 'Constructora App',
+      title: 'LuViRex',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF2E7D32),
+          primary: const Color(0xFF2E7D32),
+          secondary: const Color(0xFFFFD600),
+          tertiary: const Color(0xFFFF4081),
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF2E7D32),
+          foregroundColor: Colors.white,
+          centerTitle: true,
+        ),
         useMaterial3: true,
       ),
       home: authService.isAuthenticated ? const DashboardScreen() : const LoginScreen(),
     );
   }
 }
+
+class AnimatedLogo extends StatefulWidget {
+  const AnimatedLogo({super.key});
+
+  @override
+  State<AnimatedLogo> createState() => _AnimatedLogoState();
+}
+
+class _AnimatedLogoState extends State<AnimatedLogo> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+    _animation = Tween<double>(begin: 0.9, end: 1.1).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTransition(
+      scale: _animation,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _buildIconCol(Icons.emoji_objects, const Color(0xFFFFD600), 'Lu'),
+          const SizedBox(width: 16),
+          _buildIconCol(Icons.emoji_events, const Color(0xFFFF4081), 'Vi'),
+          const SizedBox(width: 16),
+          _buildIconCol(Icons.pets, const Color(0xFF2E7D32), 'Rex'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIconCol(IconData icon, Color color, String text) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: color, size: 48),
+        const SizedBox(height: 4),
+        Text(
+          text,
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            letterSpacing: 1.2,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -96,57 +173,82 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Iniciar Sesión')),
-      body: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                TextField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _passwordController,
-                  decoration: const InputDecoration(labelText: 'Contraseña'),
-                  obscureText: true,
-                ),
-                const SizedBox(height: 24),
-                _isLoading
-                    ? const CircularProgressIndicator()
-                    : Column(
-                        children: [
-                          ElevatedButton(
-                            onPressed: _login,
-                            child: const Text('Entrar'),
-                          ),
-                          const SizedBox(height: 20),
-                          TextButton(
-                            onPressed: _bypassLogin,
-                            child: const Text('Modo Developer (Entrar como Admin)'),
-                          ),
-                        ],
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const AnimatedLogo(),
+                    const SizedBox(height: 32),
+                    const Text(
+                      '¡Bienvenido a LuViRex!',
+                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)),
+                    ),
+                    const SizedBox(height: 32),
+                    TextField(
+                      controller: _emailController,
+                      decoration: InputDecoration(
+                        labelText: 'Email',
+                        prefixIcon: const Icon(Icons.email),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-              ],
-            ),
-          ),
-          const Positioned(
-            bottom: 16.0,
-            right: 16.0,
-            child: Text(
-              'v0.0.1',
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 12.0,
-                fontWeight: FontWeight.bold,
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _passwordController,
+                      decoration: InputDecoration(
+                        labelText: 'Contraseña',
+                        prefixIcon: const Icon(Icons.lock),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      obscureText: true,
+                    ),
+                    const SizedBox(height: 32),
+                    _isLoading
+                        ? const CircularProgressIndicator()
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF2E7D32),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                onPressed: _login,
+                                child: const Text('Entrar', style: TextStyle(fontSize: 18)),
+                              ),
+                              const SizedBox(height: 20),
+                              TextButton(
+                                onPressed: _bypassLogin,
+                                child: const Text('Modo Developer (Entrar como Admin)', style: TextStyle(color: Colors.grey)),
+                              ),
+                            ],
+                          ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+            const Positioned(
+              bottom: 16.0,
+              right: 16.0,
+              child: Text(
+                'v0.0.1 - LuViRex',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 12.0,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
