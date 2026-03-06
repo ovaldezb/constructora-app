@@ -66,6 +66,13 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
                     final dateRaw = record['timestamp'] != null ? DateTime.parse(record['timestamp']) : null;
                     final dateStr = dateRaw != null ? DateFormat('dd/MM/yyyy HH:mm').format(dateRaw.toLocal()) : 'Fecha Desconocida';
                     
+                    List<String> photos = [];
+                    if (record['photoUrls'] != null) {
+                      photos = List<String>.from(record['photoUrls']);
+                    } else if (record['photoUrl'] != null) {
+                      photos = [record['photoUrl']];
+                    }
+                    
                     return Card(
                       elevation: 3,
                       margin: const EdgeInsets.only(bottom: 12.0),
@@ -95,6 +102,40 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
                               Padding(
                                 padding: const EdgeInsets.only(top: 4.0),
                                 child: Text('Comentario: ${record['comentario']}', style: const TextStyle(fontStyle: FontStyle.italic)),
+                              ),
+                            if (photos.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8.0),
+                                child: SizedBox(
+                                  height: 80,
+                                  child: ListView.builder(
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount: photos.length,
+                                    itemBuilder: (context, idx) {
+                                      final url = photos[idx];
+                                      return Padding(
+                                        padding: const EdgeInsets.only(right: 8.0),
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            showDialog(
+                                              context: context,
+                                              builder: (_) => Dialog(
+                                                child: Image.network(url, fit: BoxFit.contain),
+                                              ),
+                                            );
+                                          },
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(8),
+                                            child: Image.network(
+                                              url, width: 80, height: 80, fit: BoxFit.cover,
+                                              errorBuilder: (ctx, err, stack) => const Icon(Icons.broken_image, size: 40, color: Colors.grey),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
                               ),
                           ],
                         ),
