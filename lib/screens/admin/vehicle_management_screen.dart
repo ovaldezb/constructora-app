@@ -5,35 +5,36 @@ import 'package:flutter/rendering.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:gal/gal.dart';
-import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
-import 'tool_form_screen.dart';
+import 'vehicle_form_screen.dart';
+import 'vehicle_movement_screen.dart';
+import 'vehicle_history_screen.dart';
 
-class ToolManagementScreen extends StatefulWidget {
-  const ToolManagementScreen({super.key});
+class VehicleManagementScreen extends StatefulWidget {
+  const VehicleManagementScreen({super.key});
 
   @override
-  State<ToolManagementScreen> createState() => _ToolManagementScreenState();
+  State<VehicleManagementScreen> createState() => _VehicleManagementScreenState();
 }
 
-class _ToolManagementScreenState extends State<ToolManagementScreen> {
+class _VehicleManagementScreenState extends State<VehicleManagementScreen> {
   final _apiService = ApiService();
-  List<dynamic> _tools = [];
+  List<dynamic> _vehicles = [];
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchTools();
+    _fetchVehicles();
   }
 
-  Future<void> _fetchTools() async {
+  Future<void> _fetchVehicles() async {
     setState(() => _isLoading = true);
     try {
-      final data = await _apiService.get('/tools');
+      final data = await _apiService.get('/vehicles');
       if (mounted) {
         setState(() {
-          _tools = data as List<dynamic>;
+          _vehicles = data as List<dynamic>;
           _isLoading = false;
         });
       }
@@ -45,12 +46,12 @@ class _ToolManagementScreenState extends State<ToolManagementScreen> {
     }
   }
 
-  Future<void> _deleteTool(String id) async {
+  Future<void> _deleteVehicle(String id) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Confirmar Eliminación'),
-        content: const Text('¿Estás seguro de eliminar (dar de baja) esta herramienta?'),
+        content: const Text('¿Estás seguro de eliminar (dar de baja) este vehículo?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
           TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Eliminar', style: TextStyle(color: Colors.red))),
@@ -60,23 +61,13 @@ class _ToolManagementScreenState extends State<ToolManagementScreen> {
 
     if (confirm == true) {
       try {
-        await _apiService.delete('/tools/$id');
-        _fetchTools(); // Refresh list
+        await _apiService.delete('/vehicles/$id');
+        _fetchVehicles(); // Refresh list
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al eliminar: $e')));
         }
       }
-    }
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'DISPONIBLE': return Colors.green;
-      case 'PRESTADO': return Colors.red;
-      case 'EN_REPARACION': return Colors.orange;
-      case 'BAJA': return Colors.black54;
-      default: return Colors.grey;
     }
   }
 
@@ -110,10 +101,10 @@ class _ToolManagementScreenState extends State<ToolManagementScreen> {
     }
   }
 
-  void _showQRDialog(Map<String, dynamic> tool) {
+  void _showQRDialog(Map<String, dynamic> vehicle) {
     final GlobalKey qrKey = GlobalKey();
-    final String qrData = tool['qrUrl'] ?? 'tool/${tool['_id']}';
-    final String name = tool['descripcion'];
+    final String qrData = vehicle['qrUrl'] ?? 'vehiculo/${vehicle['_id']}';
+    final String name = '${vehicle['modelo']} - ${vehicle['placas']}';
 
     showDialog(
       context: context,
@@ -147,7 +138,7 @@ class _ToolManagementScreenState extends State<ToolManagementScreen> {
                       textAlign: TextAlign.center,
                     ),
                     Text(
-                      tool['numeroSerie'] ?? 'S/N',
+                      vehicle['vin'] ?? 'S/N',
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                   ],
@@ -158,7 +149,7 @@ class _ToolManagementScreenState extends State<ToolManagementScreen> {
             ElevatedButton.icon(
               icon: const Icon(Icons.download),
               label: const Text('Guardar en Galería'),
-              onPressed: () => _saveQrImage(qrKey, tool['_id']),
+              onPressed: () => _saveQrImage(qrKey, vehicle['_id']),
             ),
           ],
         ),
@@ -172,105 +163,52 @@ class _ToolManagementScreenState extends State<ToolManagementScreen> {
     );
   }
 
-  Future<void> _showHistoryDialog(Map<String, dynamic> tool) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
-
-    try {
-      final String toolId = tool['_id'];
-      final data = await _apiService.get('/tool-records?toolId=$toolId&limit=5');
-      final List<dynamic> records = data as List<dynamic>;
-
-      if (mounted) {
-        Navigator.pop(context); // Close loading dialog
-        
-        final String name = tool['descripcion'];
-
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text('Historial: $name', style: const TextStyle(fontSize: 18)),
-            content: SizedBox(
-              width: double.maxFinite,
-              child: records.isEmpty
-                  ? const Text('No hay registros de movimientos.')
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: records.length,
-                      itemBuilder: (context, index) {
-                        final record = records[index];
-                        final isEntrada = record['type'] == 'ENTRADA';
-                        final timestamp = DateTime.parse(record['timestamp']).toLocal();
-                        final formattedDate = DateFormat('dd/MM/yyyy HH:mm').format(timestamp);
-                        
-                        // En listToolRecords populaste a 'employeeId' completo. 
-                        // Verificamos si existe el nombre.
-                        String workerName = 'Desconocido';
-                        if (record['employeeId'] != null) {
-                          workerName = '${record['employeeId']['nombre']} ${record['employeeId']['apellidoPaterno'] ?? ''}'.trim();
-                        }
-
-                        return ListTile(
-                          leading: Icon(
-                            isEntrada ? Icons.arrow_downward : Icons.arrow_upward,
-                            color: isEntrada ? Colors.green : Colors.orange,
-                          ),
-                          title: Text('${record['type']} - $workerName', style: const TextStyle(fontSize: 14)),
-                          subtitle: Text(formattedDate, style: const TextStyle(fontSize: 12)),
-                        );
-                      },
-                    ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cerrar'),
-              ),
-            ],
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.pop(context); // Close loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cargar historial: $e')),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Gestión de Herramientas')),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const ToolFormScreen()),
-          );
-          _fetchTools();
-        },
-        child: const Icon(Icons.add),
+      appBar: AppBar(title: const Text('Gestión de Vehículos')),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            heroTag: 'add_movement',
+            backgroundColor: Colors.orange,
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const VehicleMovementScreen()),
+              );
+              _fetchVehicles();
+            },
+            child: const Icon(Icons.swap_horiz),
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton(
+            heroTag: 'add_vehicle',
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const VehicleFormScreen()),
+              );
+              _fetchVehicles();
+            },
+            child: const Icon(Icons.add),
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView.builder(
-              itemCount: _tools.length,
+              itemCount: _vehicles.length,
               itemBuilder: (context, index) {
-                final tool = _tools[index];
-                final isActive = tool['isActivo'] ?? true;
-                final status = tool['estado'] ?? 'DISPONIBLE';
+                final vehicle = _vehicles[index];
+                final isActive = vehicle['isActivo'] ?? true;
                 
                 return Card(
                   color: isActive ? Colors.white : Colors.grey[200],
                   child: ListTile(
                     title: Text(
-                      tool['descripcion'],
+                      '${vehicle['modelo']} (${vehicle['modelyear']})',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         decoration: isActive ? null : TextDecoration.lineThrough,
@@ -281,10 +219,8 @@ class _ToolManagementScreenState extends State<ToolManagementScreen> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Tipo: ${tool['tipo']}'),
-                        if (tool['numeroSerie'] != null && tool['numeroSerie'].toString().isNotEmpty)
-                          Text('Serie: ${tool['numeroSerie']}'),
-                        Text(status, style: TextStyle(color: _getStatusColor(status), fontWeight: FontWeight.bold)),
+                        Text('Placas: ${vehicle['placas']}'),
+                        Text('VIN: ${vehicle['vin']}'),
                       ],
                     ),
                     trailing: Row(
@@ -295,23 +231,30 @@ class _ToolManagementScreenState extends State<ToolManagementScreen> {
                           onPressed: () async {
                             await Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (_) => ToolFormScreen(tool: tool)),
+                              MaterialPageRoute(builder: (_) => VehicleFormScreen(vehicle: vehicle)),
                             );
-                            _fetchTools();
+                            _fetchVehicles();
                           },
                         ),
                         IconButton(
                           icon: const Icon(Icons.qr_code, color: Colors.black),
-                          onPressed: () => _showQRDialog(tool),
+                          onPressed: () => _showQRDialog(vehicle),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.history, color: Colors.teal),
-                          onPressed: () => _showHistoryDialog(tool),
+                          icon: const Icon(Icons.history, color: Colors.purple),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => VehicleHistoryScreen(vehicle: vehicle),
+                              ),
+                            );
+                          },
                         ),
                         if (isActive)
                           IconButton(
                             icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deleteTool(tool['_id']),
+                            onPressed: () => _deleteVehicle(vehicle['_id']),
                           ),
                       ],
                     ),

@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:gal/gal.dart';
+import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
 import 'employee_form_screen.dart';
 
@@ -161,6 +162,70 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
     );
   }
 
+  Future<void> _showHistoryDialog(Map<String, dynamic> employee) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final String empId = employee['_id'];
+      final data = await _apiService.get('/attendance?employeeId=$empId&limit=5');
+      final List<dynamic> records = data as List<dynamic>;
+
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        
+        final String name = '${employee['nombre']} ${employee['apellidoPaterno']}';
+
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Historial: $name', style: const TextStyle(fontSize: 18)),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: records.isEmpty
+                  ? const Text('No hay registros de asistencia.')
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: records.length,
+                      itemBuilder: (context, index) {
+                        final record = records[index];
+                        final isEntrada = record['type'] == 'ENTRADA';
+                        final timestamp = DateTime.parse(record['timestamp']).toLocal();
+                        final formattedDate = DateFormat('dd/MM/yyyy HH:mm').format(timestamp);
+
+                        return ListTile(
+                          leading: Icon(
+                            isEntrada ? Icons.login : Icons.logout,
+                            color: isEntrada ? Colors.green : Colors.orange,
+                          ),
+                          title: Text(record['type']),
+                          subtitle: Text(formattedDate),
+                        );
+                      },
+                    ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cerrar'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al cargar historial: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -184,11 +249,6 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
                 return Card(
                   color: (emp['isActivo'] ?? true) ? Colors.white : Colors.grey[200],
                   child: ListTile(
-                    leading: CircleAvatar(
-                      child: Text(emp['nombre'][0]),
-                      backgroundColor: (emp['isActivo'] ?? true) ? Colors.blue : Colors.grey,
-                      foregroundColor: Colors.white,
-                    ),
                     title: Text('${emp['nombre']} ${emp['apellidoPaterno']}',
                       style: TextStyle(
                         decoration: (emp['isActivo'] ?? true) ? null : TextDecoration.lineThrough
@@ -215,6 +275,10 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
                             icon: const Icon(Icons.qr_code, color: Colors.black),
                             onPressed: () => _showQRDialog(emp),
                           ),
+                        IconButton(
+                          icon: const Icon(Icons.history, color: Colors.teal),
+                          onPressed: () => _showHistoryDialog(emp),
+                        ),
                         IconButton(
                           icon: const Icon(Icons.delete, color: Colors.red),
                           onPressed: () => _deleteEmployee(emp['_id']),

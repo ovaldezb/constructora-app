@@ -56,6 +56,24 @@ class ApiService {
       throw Exception('Network Error: $e');
     }
   }
+
+  Future<dynamic> getRaw(String endpoint) async {
+    final url = Uri.parse('${AppConfig.apiUrl}$endpoint');
+    final headers = await _getHeaders();
+
+    try {
+      final response = await http.get(url, headers: headers);
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return response.bodyBytes;
+      } else {
+        throw Exception('Error ${response.statusCode}: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Network Error: $e');
+    }
+  }
+
   Future<dynamic> put(String endpoint, Map<String, dynamic> data) async {
     final url = Uri.parse('${AppConfig.apiUrl}$endpoint');
     final headers = await _getHeaders();

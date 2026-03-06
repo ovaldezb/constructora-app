@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import 'qr_scanner_screen.dart';
 
 class SupervisorToolScreen extends StatefulWidget {
   const SupervisorToolScreen({super.key});
@@ -40,6 +41,16 @@ class _SupervisorToolScreenState extends State<SupervisorToolScreen> {
         // Silent error or simple log for history fetch
         print('Error fetching history: $e');
       }
+    }
+  }
+
+  Future<void> _scanQR(TextEditingController controller) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const QrScannerScreen()),
+    );
+    if (result != null && result is String) {
+      controller.text = result;
     }
   }
 
@@ -166,19 +177,27 @@ class _SupervisorToolScreenState extends State<SupervisorToolScreen> {
                     const SizedBox(height: 16),
                     TextField(
                       controller: _employeeIdController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'ID Empleado',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.person),
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.person),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.qr_code_scanner, color: Colors.blue),
+                          onPressed: () => _scanQR(_employeeIdController),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: _toolIdController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'ID Herramienta',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.construction),
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.construction),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.qr_code_scanner, color: Colors.blue),
+                          onPressed: () => _scanQR(_toolIdController),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),

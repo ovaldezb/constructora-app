@@ -3,6 +3,8 @@ import 'location_management_screen.dart';
 import 'employee_management_screen.dart';
 import 'tool_management_screen.dart';
 import 'product_inventory_screen.dart';
+import 'vehicle_management_screen.dart';
+import 'reports_screen.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
@@ -39,6 +41,18 @@ class AdminDashboard extends StatelessWidget {
           icon: Icons.inventory,
           color: Colors.purple,
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductInventoryScreen())),
+        ),
+        _AdminCard(
+          title: 'Vehículos',
+          icon: Icons.directions_car,
+          color: Colors.orange,
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VehicleManagementScreen())),
+        ),
+        _AdminCard(
+          title: 'Reportes',
+          icon: Icons.analytics,
+          color: Colors.teal,
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen())),
         ),
       ],
     );

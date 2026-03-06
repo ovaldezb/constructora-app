@@ -6,10 +6,12 @@ import 'package:flutter/rendering.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:gal/gal.dart';
+import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import 'package:provider/provider.dart';
 import '../admin/employee_form_screen.dart';
+import 'qr_scanner_screen.dart';
 
 class SupervisorEmployeeScreen extends StatefulWidget {
   const SupervisorEmployeeScreen({super.key});
@@ -164,6 +166,19 @@ class _SupervisorEmployeeScreenState extends State<SupervisorEmployeeScreen> {
     );
   }
 
+  Future<void> _scanQR(TextEditingController controller) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const QrScannerScreen()),
+    );
+    if (result != null && result is String) {
+      if (mounted) {
+        // Al modificar el texto, el TextField que escucha al controller se actualizará automáticamente
+        controller.text = result;
+      }
+    }
+  }
+
   Future<void> _showAttendanceModal() async {
     final controller = TextEditingController();
     String type = 'ENTRADA';
@@ -180,10 +195,14 @@ class _SupervisorEmployeeScreenState extends State<SupervisorEmployeeScreen> {
                const SizedBox(height: 10),
                TextField(
                  controller: controller,
-                 decoration: const InputDecoration(
+                 decoration: InputDecoration(
                    labelText: 'QR Code Data',
-                   border: OutlineInputBorder(),
-                   hintText: 'employee/65df...'
+                   border: const OutlineInputBorder(),
+                   hintText: 'employee/65df...',
+                   suffixIcon: IconButton(
+                     icon: const Icon(Icons.qr_code_scanner, color: Colors.blue),
+                     onPressed: () => _scanQR(controller),
+                   ),
                  ),
                ),
                const SizedBox(height: 10),
@@ -300,6 +319,70 @@ class _SupervisorEmployeeScreenState extends State<SupervisorEmployeeScreen> {
     );
   }
 
+  Future<void> _showHistoryDialog(Map<String, dynamic> employee) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final String empId = employee['_id'];
+      final data = await _apiService.get('/attendance?employeeId=$empId&limit=5');
+      final List<dynamic> records = data as List<dynamic>;
+
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        
+        final String name = '${employee['nombre']} ${employee['apellidoPaterno']}';
+
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Historial: $name', style: const TextStyle(fontSize: 18)),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: records.isEmpty
+                  ? const Text('No hay registros de asistencia.')
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: records.length,
+                      itemBuilder: (context, index) {
+                        final record = records[index];
+                        final isEntrada = record['type'] == 'ENTRADA';
+                        final timestamp = DateTime.parse(record['timestamp']).toLocal();
+                        final formattedDate = DateFormat('dd/MM/yyyy HH:mm').format(timestamp);
+
+                        return ListTile(
+                          leading: Icon(
+                            isEntrada ? Icons.login : Icons.logout,
+                            color: isEntrada ? Colors.green : Colors.orange,
+                          ),
+                          title: Text(record['type']),
+                          subtitle: Text(formattedDate),
+                        );
+                      },
+                    ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cerrar'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al cargar historial: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -338,10 +421,6 @@ class _SupervisorEmployeeScreenState extends State<SupervisorEmployeeScreen> {
                 final isSelf = false; // Add logic if needed
                 return Card(
                   child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Colors.blue.withOpacity(0.2),
-                      child: Text(emp['nombre'][0]),
-                    ),
                     title: Text('${emp['nombre']} ${emp['apellidoPaterno']}'),
                     subtitle: Text('${emp['puesto']}'),
                     trailing: Row(
@@ -365,6 +444,10 @@ class _SupervisorEmployeeScreenState extends State<SupervisorEmployeeScreen> {
                         IconButton(
                           icon: const Icon(Icons.qr_code, color: Colors.black),
                           onPressed: () => _showQRDialog(emp),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.history, color: Colors.teal),
+                          onPressed: () => _showHistoryDialog(emp),
                         ),
                         IconButton(
                           icon: const Icon(Icons.delete, color: Colors.red),
