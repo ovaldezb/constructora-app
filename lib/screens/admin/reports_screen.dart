@@ -58,8 +58,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
       final xFile = XFile.fromData(
         responseBytes as Uint8List,
-        name: 'reporte_asistencia_${startDateStr}_${endDateStr}.csv',
-        mimeType: 'text/csv',
+        name: 'reporte_asistencia_${startDateStr}_${endDateStr}.xlsx',
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       );
 
       await Share.shareXFiles(
@@ -124,7 +124,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ElevatedButton.icon(
                 onPressed: _downloadReport,
                 icon: const Icon(Icons.download),
-                label: const Text('Descargar Reporte CSV'),
+                label: const Text('Descargar Reporte Excel'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   textStyle: const TextStyle(fontSize: 18),

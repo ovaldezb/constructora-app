@@ -111,4 +111,8 @@ class ApiService {
       throw Exception('Network Error: $e');
     }
   }
+
+  Future<dynamic> createUser(Map<String, dynamic> data) async {
+    return await post('/users', data);
+  }
 }

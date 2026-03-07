@@ -1,6 +1,6 @@
 class AppConfig {
-  static const String apiUrl = 'https://kaya2ihiok.execute-api.us-east-1.amazonaws.com/dev';
-  static const String userPoolId = 'us-east-1_jTd5cHl6P';
-  static const String clientId = '7itld3mp913ri1rmqth4lsa6th';
-  static const String region = 'us-east-1';
+  static const String apiUrl = String.fromEnvironment('API_URL');
+  static const String userPoolId = String.fromEnvironment('USER_POOL_ID');
+  static const String clientId = String.fromEnvironment('CLIENT_ID');
+  static const String region = String.fromEnvironment('REGION', defaultValue: 'us-east-1');
 }

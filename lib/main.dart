@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:amazon_cognito_identity_dart_2/cognito.dart';
 import 'services/auth_service.dart';
 import 'screens/dashboard_screen.dart';
 
@@ -134,7 +135,10 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  
   bool _isLoading = false;
+  bool _isNewPasswordRequired = false;
 
   Future<void> _login() async {
     setState(() => _isLoading = true);
@@ -150,15 +154,58 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    try {
+      final success = await Provider.of<AuthService>(context, listen: false)
+          .login(email, password);
+      
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      
+      if (!success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al iniciar sesión. Verifica tus credenciales.')),
+        );
+      }
+    } on CognitoUserNewPasswordRequiredException catch (_) {
+      if (!mounted) return;
+      setState(() {
+         _isLoading = false;
+         _isNewPasswordRequired = true;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error inesperado: $e')),
+      );
+    }
+  }
+
+  Future<void> _submitNewPassword() async {
+    final newPassword = _newPasswordController.text.trim();
+    if (newPassword.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('La contraseña debe tener al menos 6 caracteres')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    
     final success = await Provider.of<AuthService>(context, listen: false)
-        .login(email, password);
+        .confirmNewPassword(newPassword);
     
     if (!mounted) return;
     setState(() => _isLoading = false);
-    
-    if (!success && mounted) {
+
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al iniciar sesión. Verifica tus credenciales.')),
+        const SnackBar(content: Text('Contraseña actualizada exitosamente')),
+      );
+      // Navigation will be handled by the Wrapper listening to auth state
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error al actualizar contraseña')),
       );
     }
   }
@@ -189,48 +236,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)),
                     ),
                     const SizedBox(height: 32),
-                    TextField(
-                      controller: _emailController,
-                      decoration: InputDecoration(
-                        labelText: 'Email',
-                        prefixIcon: const Icon(Icons.email),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _passwordController,
-                      decoration: InputDecoration(
-                        labelText: 'Contraseña',
-                        prefixIcon: const Icon(Icons.lock),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      obscureText: true,
-                    ),
-                    const SizedBox(height: 32),
-                    _isLoading
-                        ? const CircularProgressIndicator()
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF2E7D32),
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                ),
-                                onPressed: _login,
-                                child: const Text('Entrar', style: TextStyle(fontSize: 18)),
-                              ),
-                              const SizedBox(height: 20),
-                              TextButton(
-                                onPressed: _bypassLogin,
-                                child: const Text('Modo Developer (Entrar como Admin)', style: TextStyle(color: Colors.grey)),
-                              ),
-                            ],
-                          ),
+                    _isNewPasswordRequired
+                        ? _buildNewPasswordForm()
+                        : _buildLoginForm(),
                   ],
                 ),
               ),
@@ -250,6 +258,97 @@ class _LoginScreenState extends State<LoginScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildLoginForm() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: _emailController,
+          decoration: InputDecoration(
+            labelText: 'Email',
+            prefixIcon: const Icon(Icons.email),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          keyboardType: TextInputType.emailAddress,
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _passwordController,
+          decoration: InputDecoration(
+            labelText: 'Contraseña (Temporal o Definitiva)',
+            prefixIcon: const Icon(Icons.lock),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          obscureText: true,
+        ),
+        const SizedBox(height: 32),
+        _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2E7D32),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: _login,
+                    child: const Text('Entrar', style: TextStyle(fontSize: 18)),
+                  ),
+                  const SizedBox(height: 20),
+                  TextButton(
+                    onPressed: _bypassLogin,
+                    child: const Text('Modo Developer (Entrar como Admin)', style: TextStyle(color: Colors.grey)),
+                  ),
+                ],
+              ),
+      ],
+    );
+  }
+
+  Widget _buildNewPasswordForm() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          '¡Hola! Es tu primer ingreso.',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Por seguridad, debes crear tu propia contraseña definitiva para continuar.',
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 24),
+        TextField(
+          controller: _newPasswordController,
+          decoration: InputDecoration(
+            labelText: 'Nueva Contraseña',
+            prefixIcon: const Icon(Icons.lock_reset),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          obscureText: true,
+        ),
+        const SizedBox(height: 32),
+        _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF4081),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: _submitNewPassword,
+                child: const Text('Guardar y Entrar', style: TextStyle(fontSize: 18)),
+              ),
+      ],
     );
   }
 }

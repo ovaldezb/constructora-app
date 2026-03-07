@@ -112,12 +112,41 @@ class AuthService with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
       return true;
+    } on CognitoUserNewPasswordRequiredException catch (e) {
+      print('DEBUG: CognitoUserNewPasswordRequiredException caught');
+      _isLoading = false;
+      notifyListeners();
+      // Throw this specific exception so the UI can catch it
+      throw e;
     } catch (e) {
       print('Login Error: $e');
       _isLoading = false;
       notifyListeners();
       return false;
     }
+  }
+
+  Future<bool> confirmNewPassword(String newPassword) async {
+     _isLoading = true;
+     notifyListeners();
+
+     try {
+       _session = await _currentUser!.sendNewPasswordRequiredAnswer(newPassword);
+       
+       if (_currentUser != null && _currentUser!.username != null) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('email', _currentUser!.username!);
+       }
+
+       _isLoading = false;
+       notifyListeners();
+       return true;
+     } catch (e) {
+       print('Error setting new password: $e');
+       _isLoading = false;
+       notifyListeners();
+       return false;
+     }
   }
 
   Future<void> logout() async {
