@@ -5,7 +5,7 @@ import 'tool_management_screen.dart';
 import 'product_inventory_screen.dart';
 import 'vehicle_management_screen.dart';
 import 'reports_screen.dart';
-import 'user_registration_screen.dart';
+import 'user_management_screen.dart'; // Changed from user_registration_screen.dart
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
@@ -59,7 +59,7 @@ class AdminDashboard extends StatelessWidget {
           title: 'Usuarios',
           icon: Icons.manage_accounts,
           color: Colors.deepPurple,
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UserRegistrationScreen())),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UserManagementScreen())),
         ),
       ],
     );

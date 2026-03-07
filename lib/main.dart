@@ -138,7 +138,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _newPasswordController = TextEditingController();
   
   bool _isLoading = false;
-  bool _isNewPasswordRequired = false;
 
   Future<void> _login() async {
     setState(() => _isLoading = true);
@@ -154,29 +153,16 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    try {
-      final success = await Provider.of<AuthService>(context, listen: false)
-          .login(email, password);
-      
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      
-      if (!success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al iniciar sesión. Verifica tus credenciales.')),
-        );
-      }
-    } on CognitoUserNewPasswordRequiredException catch (_) {
-      if (!mounted) return;
-      setState(() {
-         _isLoading = false;
-         _isNewPasswordRequired = true;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
+    final success = await Provider.of<AuthService>(context, listen: false)
+        .login(email, password);
+    
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+    
+    final authService = Provider.of<AuthService>(context, listen: false);
+    if (!success && !authService.isNewPasswordRequired && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error inesperado: $e')),
+        const SnackBar(content: Text('Error al iniciar sesión. Verifica tus credenciales.')),
       );
     }
   }
@@ -192,33 +178,28 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
     
-    final success = await Provider.of<AuthService>(context, listen: false)
+    final errorMsg = await Provider.of<AuthService>(context, listen: false)
         .confirmNewPassword(newPassword);
     
     if (!mounted) return;
     setState(() => _isLoading = false);
 
-    if (success) {
+    if (errorMsg == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Contraseña actualizada exitosamente')),
       );
       // Navigation will be handled by the Wrapper listening to auth state
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al actualizar contraseña')),
+        SnackBar(content: Text(errorMsg)),
       );
     }
   }
 
-  Future<void> _bypassLogin() async {
-    setState(() => _isLoading = true);
-    await Provider.of<AuthService>(context, listen: false).loginBypass('ADMIN');
-    if (!mounted) return;
-    setState(() => _isLoading = false);
-  }
-
   @override
   Widget build(BuildContext context) {
+    final isNewPwdReq = Provider.of<AuthService>(context).isNewPasswordRequired;
+
     return Scaffold(
       body: SafeArea(
         child: Stack(
@@ -236,7 +217,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)),
                     ),
                     const SizedBox(height: 32),
-                    _isNewPasswordRequired
+                    isNewPwdReq
                         ? _buildNewPasswordForm()
                         : _buildLoginForm(),
                   ],
@@ -300,11 +281,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: _login,
                     child: const Text('Entrar', style: TextStyle(fontSize: 18)),
                   ),
-                  const SizedBox(height: 20),
-                  TextButton(
-                    onPressed: _bypassLogin,
-                    child: const Text('Modo Developer (Entrar como Admin)', style: TextStyle(color: Colors.grey)),
-                  ),
                 ],
               ),
       ],
@@ -322,8 +298,29 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Por seguridad, debes crear tu propia contraseña definitiva para continuar.',
+          'Por favor, crea tu propia contraseña definitiva para continuar.',
           textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Tu nueva contraseña debe tener:', style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 8),
+              Text('• Al menos 8 caracteres', style: TextStyle(fontSize: 12)),
+              Text('• Al menos una letra mayúscula', style: TextStyle(fontSize: 12)),
+              Text('• Al menos una letra minúscula', style: TextStyle(fontSize: 12)),
+              Text('• Al menos un número', style: TextStyle(fontSize: 12)),
+              Text('• Al menos un carácter especial (ej: !@#\$&*)', style: TextStyle(fontSize: 12)),
+            ],
+          ),
         ),
         const SizedBox(height: 24),
         TextField(

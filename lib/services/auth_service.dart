@@ -9,8 +9,10 @@ class AuthService with ChangeNotifier {
   CognitoUserSession? _session;
   String _userProfile = ''; // 'ADMIN' or 'SUPERVISOR'
   bool _isLoading = true;
+  bool _isNewPasswordRequired = false;
 
   bool get isLoading => _isLoading;
+  bool get isNewPasswordRequired => _isNewPasswordRequired;
   String? get token => _session?.getIdToken().getJwtToken();
   String get userProfile => _userProfile;
 
@@ -24,18 +26,13 @@ class AuthService with ChangeNotifier {
     _userProfile = prefs.getString('userProfile') ?? '';
     
     if (email != null) {
-      // START BYPASS CHECK
-      if (email == 'admin@bypass.com') {
-         _isLoading = false;
-         notifyListeners();
-         return; // Skip cognito check for bypass
-      }
-      // END BYPASS CHECK
-
       _currentUser = CognitoUser(email, _userPool);
       try {
         _session = await _currentUser!.getSession();
-         // TODO: Fetch real profile from session attributes if possible or separate API
+        if (_session != null && _session!.isValid()) {
+           _userProfile = _session!.getIdToken().payload['custom:PROFILE'] ?? '';
+           await prefs.setString('userProfile', _userProfile);
+        }
       } catch (e) {
         print('Error refreshing session: $e');
         _session = null;
@@ -44,57 +41,12 @@ class AuthService with ChangeNotifier {
     _isLoading = false;
     notifyListeners();
   }
-
-  // BYPASS LOGIN METHOD
-  Future<bool> loginBypass(String role) async {
-    print('DEBUG: loginBypass called with role: $role');
-    _isLoading = true;
-    notifyListeners();
-    
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    // Mock Session
-    _userProfile = role; // 'ADMIN' or 'SUPERVISOR'
-    print('DEBUG: userProfile set to: $_userProfile');
-    
-    // Fake session token just to pass isAuthenticated check if we were strictly checking it
-    // But since we use _session?.isValid(), we might need to mock that or change isAuthenticated logic.
-    // For now, let's change isAuthenticated to allow bypass
-    
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('email', 'admin@bypass.com');
-    await prefs.setString('userProfile', role);
-
-    _isLoading = false;
-    notifyListeners();
-    print('DEBUG: loginBypass finished. NotifyListeners called.');
-    return true;
-  }
-
-  // Update isAuthenticated to support bypass
-  // bool get isAuthenticated => (_session?.isValid() ?? false) || _userProfile.isNotEmpty; 
-  // actually better to separate valid cognito session from dev bypass
-  
-  // Revised isAuthenticated
-  // Revised isAuthenticated
   bool get isAuthenticated {
-     print('DEBUG: checking isAuthenticated. Profile: $_userProfile, Session valid: ${_session?.isValid()}');
-     if (_userProfile.isNotEmpty) return true; // Bypass mode active
      return _session?.isValid() ?? false;
   }
 
   Future<bool> login(String email, String password) async {
     print('DEBUG: login called with $email');
-    // START BYPASS CHECK
-    if (email.trim().toLowerCase() == 'admin@bypass.com') {
-      return await loginBypass('ADMIN');
-    }
-    if (email.trim().toLowerCase() == 'supervisor@bypass.com') {
-      return await loginBypass('SUPERVISOR');
-    }
-    // END BYPASS CHECK
-
     _isLoading = true;
     notifyListeners();
 
@@ -109,15 +61,20 @@ class AuthService with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('email', email);
       
+      if (_session != null && _session!.isValid()) {
+         _userProfile = _session!.getIdToken().payload['custom:PROFILE'] ?? '';
+         await prefs.setString('userProfile', _userProfile);
+      }
+
       _isLoading = false;
       notifyListeners();
       return true;
     } on CognitoUserNewPasswordRequiredException catch (e) {
       print('DEBUG: CognitoUserNewPasswordRequiredException caught');
+      _isNewPasswordRequired = true;
       _isLoading = false;
       notifyListeners();
-      // Throw this specific exception so the UI can catch it
-      throw e;
+      return false;
     } catch (e) {
       print('Login Error: $e');
       _isLoading = false;
@@ -126,7 +83,7 @@ class AuthService with ChangeNotifier {
     }
   }
 
-  Future<bool> confirmNewPassword(String newPassword) async {
+  Future<String?> confirmNewPassword(String newPassword) async {
      _isLoading = true;
      notifyListeners();
 
@@ -138,14 +95,25 @@ class AuthService with ChangeNotifier {
           await prefs.setString('email', _currentUser!.username!);
        }
 
+       if (_session != null && _session!.isValid()) {
+          _userProfile = _session!.getIdToken().payload['custom:PROFILE'] ?? '';
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('userProfile', _userProfile);
+       }
+
+       _isNewPasswordRequired = false;
        _isLoading = false;
        notifyListeners();
-       return true;
+       return null; // Null means success
      } catch (e) {
        print('Error setting new password: $e');
        _isLoading = false;
        notifyListeners();
-       return false;
+       
+       if (e is CognitoClientException) {
+         return e.message ?? 'Error de seguridad con la contraseña.';
+       }
+       return 'Error: Ocurrió un problema al guardar la contraseña.';
      }
   }
 

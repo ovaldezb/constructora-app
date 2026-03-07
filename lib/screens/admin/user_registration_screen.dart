@@ -24,6 +24,45 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
     if (!_formKey.currentState!.validate()) return;
     _formKey.currentState!.save();
 
+    final confirmList = [
+      'Nombre: $_givenName',
+      'Apellido: $_familyName',
+      if (_middleName.isNotEmpty) 'Materno: $_middleName',
+      'Correo: $_email',
+      'Perfil: $_profile'
+    ];
+
+    final shouldCreate = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          title: const Text('Confirmar Alta de Usuario'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('¿Estás seguro de crear un usuario con los siguientes datos?'),
+              const SizedBox(height: 12),
+              ...confirmList.map((str) => Text('• $str', style: const TextStyle(fontWeight: FontWeight.bold))),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.red)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+              child: const Text('Confirmar y Crear'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldCreate != true) return; // User cancelled
+
     setState(() {
       _isLoading = true;
     });
@@ -95,11 +134,12 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
                       decoration: const InputDecoration(labelText: 'Correo Electrónico'),
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {
-                         if (value == null || value.isEmpty) return 'Requerido';
-                         if (!value.contains('@')) return 'Correo inválido';
+                         if (value == null || value.trim().isEmpty) return 'Requerido';
+                         final emailRegex = RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9-]+\.[a-zA-Z]+");
+                         if (!emailRegex.hasMatch(value.trim())) return 'Ingresa un correo válido (ej. usuario@dominio.com)';
                          return null;
                       },
-                      onSaved: (value) => _email = value!,
+                      onSaved: (value) => _email = value!.trim(),
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
