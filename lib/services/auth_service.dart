@@ -32,6 +32,7 @@ class AuthService with ChangeNotifier {
         if (_session != null && _session!.isValid()) {
            _userProfile = _session!.getIdToken().payload['custom:PROFILE'] ?? '';
            await prefs.setString('userProfile', _userProfile);
+           await prefs.setString('token', _session!.getIdToken().getJwtToken()!);
         }
       } catch (e) {
         print('Error refreshing session: $e');
@@ -64,6 +65,7 @@ class AuthService with ChangeNotifier {
       if (_session != null && _session!.isValid()) {
          _userProfile = _session!.getIdToken().payload['custom:PROFILE'] ?? '';
          await prefs.setString('userProfile', _userProfile);
+         await prefs.setString('token', _session!.getIdToken().getJwtToken()!);
       }
 
       _isLoading = false;
@@ -99,6 +101,7 @@ class AuthService with ChangeNotifier {
           _userProfile = _session!.getIdToken().payload['custom:PROFILE'] ?? '';
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('userProfile', _userProfile);
+          await prefs.setString('token', _session!.getIdToken().getJwtToken()!);
        }
 
        _isNewPasswordRequired = false;
@@ -127,6 +130,7 @@ class AuthService with ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('email');
     await prefs.remove('userProfile');
+    await prefs.remove('token');
     _userProfile = '';
     
     notifyListeners();

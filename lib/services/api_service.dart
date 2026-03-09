@@ -5,18 +5,18 @@ import '../config.dart';
 
 class ApiService {
   Future<Map<String, String>> _getHeaders() async {
-    // In a real app, you get the token from AuthService or Storage
-    // For now, we might not send a token if the backend doesn't enforce it yet, 
-    // or we send the Mock/Cognito token.
-    // Assuming backend is open or we have a bypass.
-    
-    // final prefs = await SharedPreferences.getInstance();
-    // final token = prefs.getString('token'); 
-    
-    return {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token'); 
+
+    final headers = {
       'Content-Type': 'application/json',
-      // 'Authorization': 'Bearer $token', 
     };
+
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+
+    return headers;
   }
 
   Future<dynamic> post(String endpoint, Map<String, dynamic> data) async {
@@ -32,6 +32,8 @@ class ApiService {
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return jsonDecode(response.body);
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        throw Exception('No autorizado. Por favor inicie sesión nuevamente.');
       } else {
         throw Exception('Error ${response.statusCode}: ${response.body}');
       }
@@ -49,6 +51,8 @@ class ApiService {
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return jsonDecode(response.body);
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        throw Exception('No autorizado. Por favor inicie sesión nuevamente.');
       } else {
         throw Exception('Error ${response.statusCode}: ${response.body}');
       }

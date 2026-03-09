@@ -182,62 +182,104 @@ class _SupervisorEmployeeScreenState extends State<SupervisorEmployeeScreen> {
   Future<void> _showAttendanceModal() async {
     final controller = TextEditingController();
     String type = 'ENTRADA';
+    Map<String, dynamic>? selectedEmployee;
+
+    void _checkEmployee(String rawData, StateSetter setState) {
+       if (rawData.startsWith('employee/')) {
+         final id = rawData.split('/').last;
+         try {
+           final emp = _employees.firstWhere((e) => e['_id'] == id);
+           setState(() => selectedEmployee = emp);
+         } catch (_) {
+           setState(() => selectedEmployee = null);
+         }
+       } else {
+         setState(() => selectedEmployee = null);
+       }
+    }
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: const Text('Tomar Asistencia'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-               const Text('Simular lectura QR escribiendo "employee/ID"'),
-               const SizedBox(height: 10),
-               TextField(
-                 controller: controller,
-                 decoration: InputDecoration(
-                   labelText: 'QR Code Data',
-                   border: const OutlineInputBorder(),
-                   hintText: 'employee/65df...',
-                   suffixIcon: IconButton(
-                     icon: const Icon(Icons.qr_code_scanner, color: Colors.blue),
-                     onPressed: () => _scanQR(controller),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                 const Text('Escanea o escribe el QR del empleado'),
+                 const SizedBox(height: 10),
+                 TextField(
+                   controller: controller,
+                   onChanged: (v) => _checkEmployee(v.trim(), setState),
+                   decoration: InputDecoration(
+                     labelText: 'QR Code Data',
+                     border: const OutlineInputBorder(),
+                     hintText: 'employee/ID',
+                     suffixIcon: IconButton(
+                       icon: const Icon(Icons.qr_code_scanner, color: Colors.blue),
+                       onPressed: () async {
+                         await _scanQR(controller);
+                         _checkEmployee(controller.text.trim(), setState);
+                       },
+                     ),
                    ),
                  ),
-               ),
-               const SizedBox(height: 10),
-               DropdownButtonFormField<String>(
-                 value: type,
-                 items: const [
-                   DropdownMenuItem(value: 'ENTRADA', child: Text('Entrada')),
-                   DropdownMenuItem(value: 'SALIDA', child: Text('Salida')),
+                 if (selectedEmployee != null) ...[
+                   const SizedBox(height: 16),
+                   Card(
+                     color: Colors.grey.shade100,
+                     child: Padding(
+                       padding: const EdgeInsets.all(8.0),
+                       child: Column(
+                         children: [
+                           if (selectedEmployee!['photoUrl'] != null)
+                             ClipRRect(
+                               borderRadius: BorderRadius.circular(50),
+                               child: Image.network(
+                                 selectedEmployee!['photoUrl'],
+                                 width: 80,
+                                 height: 80,
+                                 fit: BoxFit.cover,
+                               ),
+                             )
+                           else
+                             const CircleAvatar(radius: 40, child: Icon(Icons.person, size: 40)),
+                           const SizedBox(height: 8),
+                           Text('${selectedEmployee!['nombre']} ${selectedEmployee!['apellidoPaterno']}',
+                             style: const TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                           Text(selectedEmployee!['puesto'] ?? 'Empleado',
+                             style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                         ],
+                       ),
+                     ),
+                   ),
+                   const SizedBox(height: 16),
+                   DropdownButtonFormField<String>(
+                     value: type,
+                     items: const [
+                       DropdownMenuItem(value: 'ENTRADA', child: Text('Entrada')),
+                       DropdownMenuItem(value: 'SALIDA', child: Text('Salida')),
+                     ],
+                     onChanged: (v) => setState(() => type = v!),
+                   ),
                  ],
-                 onChanged: (v) => setState(() => type = v!),
-               ),
-            ],
+              ],
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Cancelar'),
             ),
-            ElevatedButton(
-              onPressed: () async {
-                 final rawData = controller.text.trim();
-                 if (!rawData.startsWith('employee/')) {
-                    Navigator.pop(context); // Close input dialog
-                    _showErrorDialog('NO es un empleado válido ❌\nPor favor, escanea un código de empleado.');
-                    return;
-                 }
-                 
-                 final employeeId = rawData.split('/')[1];
-                 if (employeeId.isEmpty) return;
-
-                 Navigator.pop(context); // Close dialog
-                 await _registerAttendance(employeeId, type);
-              },
-              child: const Text('Registrar'),
-            ),
+            if (selectedEmployee != null)
+              ElevatedButton(
+                onPressed: () async {
+                   Navigator.pop(context); // Close dialog
+                   await _registerAttendance(selectedEmployee!['_id'], type);
+                },
+                child: const Text('Registrar'),
+              ),
           ],
         ),
       ),
@@ -401,15 +443,12 @@ class _SupervisorEmployeeScreenState extends State<SupervisorEmployeeScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-               builder: (_) => const EmployeeFormScreen(fixedProfile: 'OBRERO'),
-            ),
-          );
-          _fetchEmployees();
-        },
+        onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+               builder: (_) => const EmployeeFormScreen(fixedProfile: 'Ayudante'),
+              ),
+            ).then((_) => _fetchEmployees()),
         child: const Icon(Icons.add),
       ),
       body: _isLoading
@@ -434,7 +473,7 @@ class _SupervisorEmployeeScreenState extends State<SupervisorEmployeeScreen> {
                                 MaterialPageRoute(
                                   builder: (_) => EmployeeFormScreen(
                                      employee: emp,
-                                     fixedProfile: emp['puesto'] == 'OBRERO' ? 'OBRERO' : null // Optional restriction
+                                     fixedProfile: ['Cabo', 'Oficial de albañil', 'Media cuchara de albañil', 'Ayudante'].contains(emp['puesto']) ? emp['puesto'] : null // Optional restriction
                                   )
                                 ),
                              );

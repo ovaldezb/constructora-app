@@ -1,5 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 import '../../services/api_service.dart';
 import 'qr_scanner_screen.dart';
 
@@ -18,6 +21,9 @@ class _SupervisorToolScreenState extends State<SupervisorToolScreen> {
   String _type = 'SALIDA';
   bool _isLoading = false;
   List<dynamic> _history = [];
+
+  List<File> _imageFiles = [];
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -50,7 +56,50 @@ class _SupervisorToolScreenState extends State<SupervisorToolScreen> {
       MaterialPageRoute(builder: (_) => const QrScannerScreen()),
     );
     if (result != null && result is String) {
-      controller.text = result;
+      if (mounted) controller.text = result;
+    }
+  }
+
+  Future<void> _takePhoto() async {
+    if (_imageFiles.length >= 5) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Máximo 5 fotos permitidas')));
+      return;
+    }
+    try {
+      final pickedFile = await _picker.pickImage(source: ImageSource.camera, imageQuality: 70);
+      if (pickedFile != null) {
+        setState(() {
+          _imageFiles.add(File(pickedFile.path));
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al tomar foto: $e')));
+      }
+    }
+  }
+
+  Future<String?> _uploadPhotoToS3(File image) async {
+    try {
+      final fileName = image.path.split('/').last;
+      final response = await _apiService.get('/upload-url?filename=$fileName&folder=tool-photos');
+      final uploadUrl = response['uploadUrl'];
+      final readUrl = response['readUrl'];
+
+      if (uploadUrl == null || readUrl == null) throw Exception('No urls returned from backend');
+
+      final bytes = await image.readAsBytes();
+      final putResponse = await http.put(
+        Uri.parse(uploadUrl),
+        headers: {'Content-Type': 'image/jpeg'},
+        body: bytes,
+      );
+
+      if (putResponse.statusCode == 200) return readUrl;
+      throw Exception('S3 upload failed status ${putResponse.statusCode}');
+    } catch (e) {
+      print('S3 Upload Error: $e');
+      return null;
     }
   }
 
@@ -89,12 +138,26 @@ class _SupervisorToolScreenState extends State<SupervisorToolScreen> {
 
     setState(() => _isLoading = true);
 
+    List<String> photoUrls = [];
+    if (_imageFiles.isNotEmpty) {
+      for (var file in _imageFiles) {
+        final url = await _uploadPhotoToS3(file);
+        if (url != null) photoUrls.add(url);
+      }
+      if (photoUrls.isEmpty && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error subiendo las fotos')));
+        setState(() => _isLoading = false);
+        return;
+      }
+    }
+
     try {
       final payload = {
         'employeeId': employeeId,
         'toolId': toolId,
         'type': _type,
         'comentario': comment,
+        if (photoUrls.isNotEmpty) 'photoUrls': photoUrls,
         'timestamp': DateTime.now().toIso8601String(),
       };
 
@@ -107,6 +170,7 @@ class _SupervisorToolScreenState extends State<SupervisorToolScreen> {
         _employeeIdController.clear();
         _toolIdController.clear();
         _commentController.clear();
+        _imageFiles.clear();
         _fetchHistory();
       }
     } catch (e) {
@@ -223,6 +287,52 @@ class _SupervisorToolScreenState extends State<SupervisorToolScreen> {
                       ),
                       maxLines: 2,
                     ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.camera_alt),
+                            label: Text('Tomar Foto (${_imageFiles.length}/5)'),
+                            onPressed: _imageFiles.length < 5 ? _takePhoto : null,
+                            style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.all(16),
+                                backgroundColor: Colors.grey[200],
+                                foregroundColor: Colors.black
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_imageFiles.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 100,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _imageFiles.length,
+                          itemBuilder: (context, index) => Stack(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8.0),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.file(_imageFiles[index], width: 100, height: 100, fit: BoxFit.cover),
+                                ),
+                              ),
+                              Positioned(
+                                right: 0,
+                                top: 0,
+                                child: IconButton(
+                                  icon: const Icon(Icons.remove_circle, color: Colors.red),
+                                  onPressed: () => setState(() => _imageFiles.removeAt(index)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: _isLoading ? null : _registerMovement,

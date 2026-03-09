@@ -143,16 +143,6 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
-    
-    // REDUNDANT CHECK IN UI
-    if (email.toLowerCase() == 'admin@bypass.com') {
-      print('DEBUG UI: Direct bypass trigger from LoginScreen');
-      await Provider.of<AuthService>(context, listen: false).loginBypass('ADMIN');
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      return;
-    }
-
     final success = await Provider.of<AuthService>(context, listen: false)
         .login(email, password);
     
