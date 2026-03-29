@@ -1,10 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:amazon_cognito_identity_dart_2/cognito.dart';
 import 'services/auth_service.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/splash_screen.dart';
+import 'theme/app_colors.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+    ),
+  );
   runApp(const MyApp());
 }
 
@@ -22,108 +32,106 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class AppRoot extends StatelessWidget {
+class AppRoot extends StatefulWidget {
   const AppRoot({super.key});
+
+  @override
+  State<AppRoot> createState() => _AppRootState();
+}
+
+class _AppRootState extends State<AppRoot> {
+  bool _showSplash = true;
 
   @override
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
     print('DEBUG: AppRoot rebuilding. isAuthenticated: ${authService.isAuthenticated}');
 
-    if (authService.isLoading) {
-      return const MaterialApp(
-        home: Scaffold(body: Center(child: CircularProgressIndicator())),
-      );
-    }
-    
     return MaterialApp(
-      title: 'LuViRex',
+      title: 'LuViRex - VCM',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF2E7D32),
-          primary: const Color(0xFF2E7D32),
-          secondary: const Color(0xFFFFD600),
-          tertiary: const Color(0xFFFF4081),
+          seedColor: AppColors.primary,
+          primary: AppColors.primary,
+          secondary: AppColors.accent,
+          tertiary: AppColors.silver,
+          surface: AppColors.surface,
+          error: AppColors.error,
         ),
+        scaffoldBackgroundColor: AppColors.background,
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF2E7D32),
+          backgroundColor: AppColors.primaryDark,
           foregroundColor: Colors.white,
           centerTitle: true,
+          elevation: 0,
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.accent, width: 2),
+          ),
+          prefixIconColor: AppColors.primary,
+        ),
+        cardTheme: CardThemeData(
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
         ),
         useMaterial3: true,
       ),
-      home: authService.isAuthenticated ? const DashboardScreen() : const LoginScreen(),
-    );
-  }
-}
-
-class AnimatedLogo extends StatefulWidget {
-  const AnimatedLogo({super.key});
-
-  @override
-  State<AnimatedLogo> createState() => _AnimatedLogoState();
-}
-
-class _AnimatedLogoState extends State<AnimatedLogo> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
-    _animation = Tween<double>(begin: 0.9, end: 1.1).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+      home: _buildHome(authService),
     );
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  Widget _buildHome(AuthService authService) {
+    if (_showSplash) {
+      return SplashScreen(
+        onFinished: () {
+          if (mounted) {
+            setState(() => _showSplash = false);
+          }
+        },
+      );
+    }
 
-  @override
-  Widget build(BuildContext context) {
-    return ScaleTransition(
-      scale: _animation,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _buildIconCol(Icons.emoji_objects, const Color(0xFFFFD600), 'Lu'),
-          const SizedBox(width: 16),
-          _buildIconCol(Icons.emoji_events, const Color(0xFFFF4081), 'Vi'),
-          const SizedBox(width: 16),
-          _buildIconCol(Icons.pets, const Color(0xFF2E7D32), 'Rex'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildIconCol(IconData icon, Color color, String text) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: color, size: 48),
-        const SizedBox(height: 4),
-        Text(
-          text,
-          style: TextStyle(
-            color: color,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-            letterSpacing: 1.2,
+    if (authService.isLoading) {
+      return Scaffold(
+        body: Container(
+          decoration: const BoxDecoration(gradient: AppColors.splashGradient),
+          child: const Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent),
+            ),
           ),
         ),
-      ],
-    );
+      );
+    }
+
+    return authService.isAuthenticated
+        ? const DashboardScreen()
+        : const LoginScreen();
   }
 }
 
+
+// ══════════════════════════════════════════════════════════════════
+// LOGIN SCREEN
+// ══════════════════════════════════════════════════════════════════
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -132,12 +140,36 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _newPasswordController = TextEditingController();
-  
+  late AnimationController _animController;
+  late Animation<double> _fadeIn;
+
   bool _isLoading = false;
+  bool _obscurePassword = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+    _fadeIn = CurvedAnimation(parent: _animController, curve: Curves.easeIn);
+    _animController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _newPasswordController.dispose();
+    super.dispose();
+  }
 
   Future<void> _login() async {
     setState(() => _isLoading = true);
@@ -145,14 +177,19 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordController.text.trim();
     final success = await Provider.of<AuthService>(context, listen: false)
         .login(email, password);
-    
+
     if (!mounted) return;
     setState(() => _isLoading = false);
-    
+
     final authService = Provider.of<AuthService>(context, listen: false);
     if (!success && !authService.isNewPasswordRequired && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al iniciar sesión. Verifica tus credenciales.')),
+        SnackBar(
+          content: const Text('Error al iniciar sesión. Verifica tus credenciales.'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
       );
     }
   }
@@ -161,27 +198,41 @@ class _LoginScreenState extends State<LoginScreen> {
     final newPassword = _newPasswordController.text.trim();
     if (newPassword.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('La contraseña debe tener al menos 6 caracteres')),
+        SnackBar(
+          content: const Text('La contraseña debe tener al menos 6 caracteres'),
+          backgroundColor: AppColors.warning,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
       );
       return;
     }
 
     setState(() => _isLoading = true);
-    
+
     final errorMsg = await Provider.of<AuthService>(context, listen: false)
         .confirmNewPassword(newPassword);
-    
+
     if (!mounted) return;
     setState(() => _isLoading = false);
 
     if (errorMsg == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Contraseña actualizada exitosamente')),
+        SnackBar(
+          content: const Text('Contraseña actualizada exitosamente'),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
       );
-      // Navigation will be handled by the Wrapper listening to auth state
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMsg)),
+        SnackBar(
+          content: Text(errorMsg),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
       );
     }
   }
@@ -191,42 +242,171 @@ class _LoginScreenState extends State<LoginScreen> {
     final isNewPwdReq = Provider.of<AuthService>(context).isNewPasswordRequired;
 
     return Scaffold(
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const AnimatedLogo(),
-                    const SizedBox(height: 32),
-                    const Text(
-                      '¡Bienvenido a LuViRex!',
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppColors.primaryDark,
+              AppColors.primary,
+              AppColors.background,
+            ],
+            stops: [0.0, 0.35, 0.6],
+          ),
+        ),
+        child: SafeArea(
+          child: Stack(
+            children: [
+              Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 28.0),
+                  child: FadeTransition(
+                    opacity: _fadeIn,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 40),
+
+                        // ── Logo ──
+                        Container(
+                          width: 140,
+                          height: 140,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.accent.withOpacity(0.25),
+                                blurRadius: 24,
+                                spreadRadius: 2,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: Image.asset(
+                              'assets/images/logo_vcm.jpg',
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // ── App name ──
+                        const Text(
+                          'LuViRex',
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w300,
+                            color: Colors.white,
+                            letterSpacing: 6,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'VCM Arquitectura Inteligente',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white.withOpacity(0.7),
+                            letterSpacing: 2,
+                          ),
+                        ),
+
+                        const SizedBox(height: 40),
+
+                        // ── Form Card ──
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primaryDark.withOpacity(0.12),
+                                blurRadius: 20,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const Text(
+                                '¡Bienvenido!',
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primaryDark,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                isNewPwdReq
+                                    ? 'Crea tu nueva contraseña'
+                                    : 'Inicia sesión para continuar',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.textSecondary,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+
+                              const SizedBox(height: 24),
+
+                              // ── Gold accent line ──
+                              Center(
+                                child: Container(
+                                  width: 50,
+                                  height: 3,
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [AppColors.accentDark, AppColors.accent, AppColors.accentLight],
+                                    ),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+
+                              isNewPwdReq
+                                  ? _buildNewPasswordForm()
+                                  : _buildLoginForm(),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 40),
+                      ],
                     ),
-                    const SizedBox(height: 32),
-                    isNewPwdReq
-                        ? _buildNewPasswordForm()
-                        : _buildLoginForm(),
-                  ],
+                  ),
                 ),
               ),
-            ),
-            const Positioned(
-              bottom: 16.0,
-              right: 16.0,
-              child: Text(
-                'v0.0.1 - LuViRex',
-                style: TextStyle(
-                  color: Colors.grey,
-                  fontSize: 12.0,
-                  fontWeight: FontWeight.bold,
+
+              // ── Version badge ──
+              Positioned(
+                bottom: 16.0,
+                right: 16.0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryDark.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'v0.0.1',
+                    style: TextStyle(
+                      color: AppColors.silver,
+                      fontSize: 11,
+                      letterSpacing: 1,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -238,10 +418,9 @@ class _LoginScreenState extends State<LoginScreen> {
       children: [
         TextField(
           controller: _emailController,
-          decoration: InputDecoration(
+          decoration: const InputDecoration(
             labelText: 'Email',
-            prefixIcon: const Icon(Icons.email),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            prefixIcon: Icon(Icons.email_outlined),
           ),
           keyboardType: TextInputType.emailAddress,
         ),
@@ -249,29 +428,44 @@ class _LoginScreenState extends State<LoginScreen> {
         TextField(
           controller: _passwordController,
           decoration: InputDecoration(
-            labelText: 'Contraseña (Temporal o Definitiva)',
-            prefixIcon: const Icon(Icons.lock),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            labelText: 'Contraseña',
+            prefixIcon: const Icon(Icons.lock_outline),
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                color: AppColors.textSecondary,
+              ),
+              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+            ),
           ),
-          obscureText: true,
+          obscureText: _obscurePassword,
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 28),
         _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2E7D32),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: _login,
-                    child: const Text('Entrar', style: TextStyle(fontSize: 18)),
+            ? const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent),
+                ),
+              )
+            : ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                ],
+                  elevation: 2,
+                ),
+                onPressed: _login,
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.login, size: 20),
+                    SizedBox(width: 8),
+                    Text('Entrar', style: TextStyle(fontSize: 17, letterSpacing: 1)),
+                  ],
+                ),
               ),
       ],
     );
@@ -281,59 +475,84 @@ class _LoginScreenState extends State<LoginScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          '¡Hola! Es tu primer ingreso.',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Por favor, crea tu propia contraseña definitiva para continuar.',
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 16),
         Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey.shade300),
+            color: AppColors.accent.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.accent.withOpacity(0.3)),
           ),
-          child: const Column(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Tu nueva contraseña debe tener:', style: TextStyle(fontWeight: FontWeight.bold)),
-              SizedBox(height: 8),
-              Text('• Al menos 8 caracteres', style: TextStyle(fontSize: 12)),
-              Text('• Al menos una letra mayúscula', style: TextStyle(fontSize: 12)),
-              Text('• Al menos una letra minúscula', style: TextStyle(fontSize: 12)),
-              Text('• Al menos un número', style: TextStyle(fontSize: 12)),
-              Text('• Al menos un carácter especial (ej: !@#\$&*)', style: TextStyle(fontSize: 12)),
+              const Row(
+                children: [
+                  Icon(Icons.info_outline, color: AppColors.accent, size: 18),
+                  SizedBox(width: 8),
+                  Text(
+                    'Requisitos de contraseña:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryDark,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              ...[
+                '• Al menos 8 caracteres',
+                '• Al menos una letra mayúscula',
+                '• Al menos una letra minúscula',
+                '• Al menos un número',
+                '• Al menos un carácter especial (ej: !@#\$&*)',
+              ].map((req) => Padding(
+                    padding: const EdgeInsets.only(left: 26, top: 2),
+                    child: Text(
+                      req,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  )),
             ],
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
         TextField(
           controller: _newPasswordController,
-          decoration: InputDecoration(
+          decoration: const InputDecoration(
             labelText: 'Nueva Contraseña',
-            prefixIcon: const Icon(Icons.lock_reset),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            prefixIcon: Icon(Icons.lock_reset),
           ),
           obscureText: true,
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 28),
         _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent),
+                ),
+              )
             : ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF4081),
+                  backgroundColor: AppColors.accent,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 onPressed: _submitNewPassword,
-                child: const Text('Guardar y Entrar', style: TextStyle(fontSize: 18)),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.check_circle_outline, size: 20),
+                    SizedBox(width: 8),
+                    Text('Guardar y Entrar', style: TextStyle(fontSize: 17, letterSpacing: 1)),
+                  ],
+                ),
               ),
       ],
     );
