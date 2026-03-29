@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
-import '../admin/product_inventory_screen.dart'; // Reusing for Material/Inventory
+import '../../theme/app_colors.dart';
+import '../admin/product_inventory_screen.dart';
 import 'supervisor_employee_screen.dart';
 import 'supervisor_tool_screen.dart';
 
@@ -32,13 +33,13 @@ class SupervisorDashboard extends StatelessWidget {
           _SupervisorCard(
             title: 'Gestión de Empleados',
             icon: Icons.people,
-            color: Colors.blue,
+            color: AppColors.cardEmpleados,
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupervisorEmployeeScreen())),
           ),
           _SupervisorCard(
               title: 'Herramientas',
               icon: Icons.inventory_2,
-              color: Colors.orange,
+              color: AppColors.cardHerramientas,
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupervisorToolScreen())),
           ),
         ],

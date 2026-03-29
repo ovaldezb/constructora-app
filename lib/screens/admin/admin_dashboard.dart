@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import '../../theme/app_colors.dart';
 import 'location_management_screen.dart';
 import 'employee_management_screen.dart';
 import 'tool_management_screen.dart';
 import 'product_inventory_screen.dart';
 import 'vehicle_management_screen.dart';
 import 'reports_screen.dart';
-import 'user_management_screen.dart'; // Changed from user_registration_screen.dart
+import 'user_management_screen.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
@@ -13,7 +14,7 @@ class AdminDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GridView.extent(
-      maxCrossAxisExtent: 200, // Cards adapt to screen width (approx 200 width per card)
+      maxCrossAxisExtent: 200,
       padding: const EdgeInsets.all(16.0),
       crossAxisSpacing: 16.0,
       mainAxisSpacing: 16.0,
@@ -22,43 +23,43 @@ class AdminDashboard extends StatelessWidget {
         _AdminCard(
           title: 'Empleados',
           icon: Icons.people,
-          color: Colors.blue,
+          color: AppColors.cardEmpleados,
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EmployeeManagementScreen())),
         ),
         _AdminCard(
           title: 'Locaciones',
           icon: Icons.place,
-          color: Colors.green,
+          color: AppColors.cardLocaciones,
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LocationManagementScreen())),
         ),
         _AdminCard(
           title: 'Herramientas',
           icon: Icons.build,
-          color: Colors.red,
+          color: AppColors.cardHerramientas,
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ToolManagementScreen())),
         ),
         _AdminCard(
           title: 'Inventario',
           icon: Icons.inventory,
-          color: Colors.purple,
+          color: AppColors.cardInventario,
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductInventoryScreen())),
         ),
         _AdminCard(
           title: 'Vehículos',
           icon: Icons.directions_car,
-          color: Colors.orange,
+          color: AppColors.cardVehiculos,
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VehicleManagementScreen())),
         ),
         _AdminCard(
           title: 'Reportes',
           icon: Icons.analytics,
-          color: Colors.teal,
+          color: AppColors.cardReportes,
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen())),
         ),
         _AdminCard(
           title: 'Usuarios',
           icon: Icons.manage_accounts,
-          color: Colors.deepPurple,
+          color: AppColors.cardUsuarios,
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UserManagementScreen())),
         ),
       ],

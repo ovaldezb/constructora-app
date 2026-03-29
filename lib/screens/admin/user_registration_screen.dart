@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../theme/app_colors.dart';
 
 class UserRegistrationScreen extends StatefulWidget {
   const UserRegistrationScreen({Key? key}) : super(key: key);
@@ -53,7 +54,7 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx, true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
               child: const Text('Confirmar y Crear'),
             ),
           ],
@@ -102,7 +103,7 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Registrar Usuario'),
-        backgroundColor: Colors.teal,
+        backgroundColor: AppColors.primaryDark,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -161,7 +162,7 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
                       onPressed: _submit,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: Colors.teal,
+                        backgroundColor: AppColors.primary,
                         textStyle: const TextStyle(fontSize: 18),
                       ),
                       child: const Text('Crear Usuario'),
